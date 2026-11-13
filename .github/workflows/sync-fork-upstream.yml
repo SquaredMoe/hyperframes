@@ -16,6 +16,15 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
+      # This fork contains legacy raw fixtures matching Git LFS attributes.
+      # Plain Git blobs are sufficient for a merge-only job.
+      - name: Avoid LFS transformation of legacy fixtures
+        run: |
+          git config --global filter.lfs.process ""
+          git config --global filter.lfs.clean ""
+          git config --global filter.lfs.smudge ""
+          git config --global filter.lfs.required false
+
       - name: Check out this fork
         uses: actions/checkout@v4
         with:
@@ -42,6 +51,11 @@ jobs:
           if [[ -z "${parent}" || -z "${parent_branch}" ]]; then
             echo "No available upstream repository. Your fork has been left intact." >> "${GITHUB_STEP_SUMMARY}"
             exit 0
+          fi
+
+          if ! git diff --quiet || ! git diff --cached --quiet; then
+            echo "Dirty checkout detected; refusing to merge." >> "${GITHUB_STEP_SUMMARY}"
+            exit 1
           fi
 
           git config user.name "github-actions[bot]"
